@@ -135,7 +135,13 @@ void SDIOAnalyzerSettings::LoadSettings( const char* settings )
 	text_archive >> mDAT3Channel;
 
 	ClearChannels();
-	AddChannel( mInputChannel, "SDIO", true );
+
+	AddChannel( mClockChannel, "Clock", true );
+	AddChannel( mCmdChannel, "Cmd", true );
+	AddChannel( mDAT0Channel, "DAT0", true );
+	AddChannel( mDAT1Channel, "DAT1", true );
+	AddChannel( mDAT2Channel, "DAT2", true );
+	AddChannel( mDAT3Channel, "DAT3", true );
 
 	UpdateInterfacesFromSettings();
 }
