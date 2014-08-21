@@ -74,34 +74,53 @@ void SDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel,
 
 void SDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id )
 {
-	// std::ofstream file_stream( file, std::ios::out );
+	std::ofstream file_stream( file, std::ios::out );
 
-	// U64 trigger_sample = mAnalyzer->GetTriggerSample();
-	// U32 sample_rate = mAnalyzer->GetSampleRate();
+	U64 trigger_sample = mAnalyzer->GetTriggerSample();
+	U32 sample_rate = mAnalyzer->GetSampleRate();
 
-	// file_stream << "Time [s],Value" << std::endl;
+	file_stream << "Time [s],Value" << std::endl;
 
-	// U64 num_frames = GetNumFrames();
-	// for( U32 i=0; i < num_frames; i++ )
-	// {
-	// 	Frame frame = GetFrame( i );
+	U64 num_frames = GetNumFrames();
+	for( U32 i=0; i < num_frames; i++ )
+	{
+		Frame frame = GetFrame( i );
 		
-	// 	char time_str[128];
-	// 	AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, time_str, 128 );
+		char time_str[128];
+		AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, time_str, 128 );
 
-	// 	char number_str[128];
-	// 	AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
+		char number_str[128];
+		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
 
-	// 	file_stream << time_str << "," << number_str << std::endl;
+		file_stream << time_str << ",";
+		
+		if (frame.mType == SDIOAnalyzer::FRAME_DIR){
+			file_stream << "DIR:";
+			if (frame.mData1){
+				file_stream << "from Host";
+			}else{
+				file_stream << "from Slave";
+			}
+		}else if (frame.mType == SDIOAnalyzer::FRAME_CMD){
+			file_stream << "CMD:" << number_str;
+		}else if (frame.mType == SDIOAnalyzer::FRAME_ARG){
+			file_stream << "ARG:" << number_str;
+		}else if (frame.mType == SDIOAnalyzer::FRAME_LONG_ARG){
+			file_stream << "LONG_ARG:" << number_str;
+		}else if (frame.mType == SDIOAnalyzer::FRAME_CRC){
+			file_stream << "CRC:" << number_str;
+		}
+		
+		file_stream << std::endl;
 
-	// 	if( UpdateExportProgressAndCheckForCancel( i, num_frames ) == true )
-	// 	{
-	// 		file_stream.close();
-	// 		return;
-	// 	}
-	// }
+		if( UpdateExportProgressAndCheckForCancel( i, num_frames ) == true )
+		{
+			file_stream.close();
+			return;
+		}
+	}
 
-	// file_stream.close();
+	file_stream.close();
 }
 
 void SDIOAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayBase display_base )
