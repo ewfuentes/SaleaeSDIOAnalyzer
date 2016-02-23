@@ -4,12 +4,10 @@ import os, glob, platform
 dylib_ext = ""
 if platform.system().lower() == "darwin":
     dylib_ext = ".dylib"
-    opt_flags = "-arch i386"
 else:
     dylib_ext = ".so"
-    opt_flags = ""
     
-print "Running on " + platform.system()
+print("Running on " + platform.system())
 
 #make sure the release folder exists, and clean out any .o/.so file if there are any
 if not os.path.exists( "release" ):
@@ -44,8 +42,8 @@ include_paths = [ "../include" ]
 link_paths = [ "../lib" ]
 link_dependencies = [ "-lAnalyzer" ] #refers to libAnalyzer.dylib or libAnalyzer.so
 
-debug_compile_flags = "-O0 -w -Wall -c -fpic -g %s" % (opt_flags)
-release_compile_flags = "-O3 -w -c -fpic %s" % (opt_flags)
+debug_compile_flags = "-O0 -w -c -fpic -g"
+release_compile_flags = "-O3 -w -c -fpic"
 
 #loop through all the cpp files, build up the gcc command line, and attempt to compile each cpp file
 for cpp_file in cpp_files:
@@ -68,15 +66,15 @@ for cpp_file in cpp_files:
     debug_command += "\"" + "source/" + cpp_file + "\"" #the cpp file to compile
 
     #run the commands from the command line
-    print release_command
+    print(release_command)
     os.system( release_command )
-    print debug_command
+    print(debug_command)
     os.system( debug_command )
     
 #lastly, link
 #g++
 command = "g++ "
-command += '%s ' % (opt_flags)
+
 #add the library search paths
 for link_path in link_paths:
     command += "-L\"" + link_path + "\" "
@@ -113,9 +111,9 @@ for cpp_file in cpp_files:
     debug_command += "debug/" + cpp_file.replace( ".cpp", ".o" ) + " "
     
 #run the commands from the command line
-print release_command
+print(release_command)
 os.system( release_command )
-print debug_command
+print(debug_command)
 os.system( debug_command )
 
         
