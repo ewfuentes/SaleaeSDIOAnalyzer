@@ -104,9 +104,9 @@ bool SDIOAnalyzerSettings::SetSettingsFromInterfaces()
 	AddChannel( mClockChannel, "Clock", true );
 	AddChannel( mCmdChannel, "Command", true );
 	AddChannel( mDAT0Channel, "DAT0", true );
-	AddChannel( mDAT1Channel, "DAT1", mDAT1Channel.mChannelIndex != UNDEFINED_CHANNEL.mChannelIndex);
-	AddChannel( mDAT2Channel, "DAT2", mDAT2Channel.mChannelIndex != UNDEFINED_CHANNEL.mChannelIndex);
-	AddChannel( mDAT3Channel, "DAT3", mDAT3Channel.mChannelIndex != UNDEFINED_CHANNEL.mChannelIndex);
+	AddChannel( mDAT1Channel, "DAT1", mDAT1Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT2Channel, "DAT2", mDAT2Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT3Channel, "DAT3", mDAT3Channel != UNDEFINED_CHANNEL);
 	return true;
 }
 
@@ -139,9 +139,9 @@ void SDIOAnalyzerSettings::LoadSettings( const char* settings )
 	AddChannel( mClockChannel, "Clock", true );
 	AddChannel( mCmdChannel, "Cmd", true );
 	AddChannel( mDAT0Channel, "DAT0", true );
-	AddChannel( mDAT1Channel, "DAT1", mDAT1Channel.mChannelIndex != UNDEFINED_CHANNEL.mChannelIndex);
-	AddChannel( mDAT2Channel, "DAT2", mDAT2Channel.mChannelIndex != UNDEFINED_CHANNEL.mChannelIndex);
-	AddChannel( mDAT3Channel, "DAT3", mDAT3Channel.mChannelIndex != UNDEFINED_CHANNEL.mChannelIndex);
+	AddChannel( mDAT1Channel, "DAT1", mDAT1Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT2Channel, "DAT2", mDAT2Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT3Channel, "DAT3", mDAT3Channel != UNDEFINED_CHANNEL);
 
 	UpdateInterfacesFromSettings();
 }
