@@ -26,7 +26,7 @@
 
 
 SDIOAnalyzer::SDIOAnalyzer()
-:	Analyzer(),  
+:	Analyzer(),
 	mSettings( new SDIOAnalyzerSettings() ),
 	mSimulationInitilized( false ),
 	mAlreadyRun(false),
@@ -59,16 +59,16 @@ void SDIOAnalyzer::WorkerThread()
 	mClock = GetAnalyzerChannelData(mSettings->mClockChannel);
 	mCmd = GetAnalyzerChannelData(mSettings->mCmdChannel);
 	mDAT0 = GetAnalyzerChannelData(mSettings->mDAT0Channel);
-	mDAT1 = GetAnalyzerChannelData(mSettings->mDAT1Channel);
-	mDAT2 = GetAnalyzerChannelData(mSettings->mDAT2Channel);
-	mDAT3 = GetAnalyzerChannelData(mSettings->mDAT3Channel);
+	mDAT1 = mSettings->mDAT1Channel == UNDEFINED_CHANNEL ? nullptr : GetAnalyzerChannelData(mSettings->mDAT1Channel);
+	mDAT2 = mSettings->mDAT2Channel == UNDEFINED_CHANNEL ? nullptr : GetAnalyzerChannelData(mSettings->mDAT2Channel);
+	mDAT3 = mSettings->mDAT3Channel == UNDEFINED_CHANNEL ? nullptr : GetAnalyzerChannelData(mSettings->mDAT3Channel);
 
 	mClock->AdvanceToNextEdge();
 	mCmd->AdvanceToAbsPosition(mClock->GetSampleNumber());
 	mDAT0->AdvanceToAbsPosition(mClock->GetSampleNumber());
-	mDAT1->AdvanceToAbsPosition(mClock->GetSampleNumber());
-	mDAT2->AdvanceToAbsPosition(mClock->GetSampleNumber());
-	mDAT3->AdvanceToAbsPosition(mClock->GetSampleNumber());
+	if (mDAT1) mDAT1->AdvanceToAbsPosition(mClock->GetSampleNumber());
+	if (mDAT2) mDAT2->AdvanceToAbsPosition(mClock->GetSampleNumber());
+	if (mDAT3) mDAT3->AdvanceToAbsPosition(mClock->GetSampleNumber());
 
 	for ( ; ; ){
 		PacketStateMachine();
@@ -83,7 +83,7 @@ void SDIOAnalyzer::PacketStateMachine()
 {
 	if (packetState == WAITING_FOR_PACKET)
 	{
-		//If we are not in a packet, let's advance to the next edge on the 
+		//If we are not in a packet, let's advance to the next edge on the
 		//command line
 		mCmd->AdvanceToNextEdge();
 		U64 sampleNumber = mCmd->GetSampleNumber();
@@ -101,15 +101,15 @@ void SDIOAnalyzer::PacketStateMachine()
 
 		mCmd->AdvanceToAbsPosition(sampleNumber);
 		mDAT0->AdvanceToAbsPosition(sampleNumber);
-		mDAT1->AdvanceToAbsPosition(sampleNumber);
-		mDAT2->AdvanceToAbsPosition(sampleNumber);
-		mDAT3->AdvanceToAbsPosition(sampleNumber);
+		if (mDAT1) mDAT1->AdvanceToAbsPosition(sampleNumber);
+		if (mDAT2) mDAT2->AdvanceToAbsPosition(sampleNumber);
+		if (mDAT3) mDAT3->AdvanceToAbsPosition(sampleNumber);
 
 		if (mCmd->GetBitState() == BIT_LOW){
-			packetState = IN_PACKET;	
+			packetState = IN_PACKET;
 		}
-		
-		
+
+
 	}
 	else if (packetState == IN_PACKET)
 	{
@@ -118,12 +118,12 @@ void SDIOAnalyzer::PacketStateMachine()
 
 		mCmd->AdvanceToAbsPosition(sampleNumber);
 		mDAT0->AdvanceToAbsPosition(sampleNumber);
-		mDAT1->AdvanceToAbsPosition(sampleNumber);
-		mDAT2->AdvanceToAbsPosition(sampleNumber);
-		mDAT3->AdvanceToAbsPosition(sampleNumber);
-		
+		if (mDAT1) mDAT1->AdvanceToAbsPosition(sampleNumber);
+		if (mDAT2) mDAT2->AdvanceToAbsPosition(sampleNumber);
+		if (mDAT3) mDAT3->AdvanceToAbsPosition(sampleNumber);
+
 		if (mClock->GetBitState() == BIT_HIGH){
-			mResults->AddMarker(mClock->GetSampleNumber(), 
+			mResults->AddMarker(mClock->GetSampleNumber(),
 				AnalyzerResults::UpArrow, mSettings->mClockChannel);
 			if (FrameStateMachine()==1){
 				packetState = WAITING_FOR_PACKET;
@@ -161,10 +161,10 @@ U32 SDIOAnalyzer::FrameStateMachine()
 		//If the bit is low, the packet comes from the slave
 		isCmd = mCmd->GetBitState();
 
-		
+
 		frameState = COMMAND;
-		frameCounter = 6;	
-		
+		frameCounter = 6;
+
 		startOfNextFrame = (frame.mEndingSampleInclusive + 1);
 		temp = 0;
 	}
@@ -182,7 +182,7 @@ U32 SDIOAnalyzer::FrameStateMachine()
 			frame.mData1 = temp; // Select the first 6 bits
 			frame.mType = FRAME_CMD;
 			mResults->AddFrame(frame);
-			
+
 			//Once we have the arguement
 
 			//Find the expected length of the next reponse based on the command
@@ -201,9 +201,9 @@ U32 SDIOAnalyzer::FrameStateMachine()
 					respLength = 32;
 					respType = 1;
 				}
-				
+
 			}
-			
+
 
 			frameState = ARGUMENT;
 			startOfNextFrame = frame.mEndingSampleInclusive + 1;
@@ -214,7 +214,7 @@ U32 SDIOAnalyzer::FrameStateMachine()
 				frameCounter = respLength;
 			}
 		}
-		
+
 	}
 	else if (frameState == ARGUMENT)
 	{
