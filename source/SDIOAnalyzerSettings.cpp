@@ -91,6 +91,30 @@ bool SDIOAnalyzerSettings::SetSettingsFromInterfaces()
 	// mInputChannel = mInputChannelInterface->GetChannel();
 	// mBitRate = mBitRateInterface->GetInteger();
 
+	// check channel selection
+	{
+		Channel d0, d1, d2, d3;
+		d0 = mDAT0ChannelInterface->GetChannel();
+		d1 = mDAT1ChannelInterface->GetChannel();
+		d2 = mDAT2ChannelInterface->GetChannel();
+		d3 = mDAT3ChannelInterface->GetChannel();
+
+		if (d1 == UNDEFINED_CHANNEL && d2 == UNDEFINED_CHANNEL && d3 == UNDEFINED_CHANNEL)
+		{
+			// this is valid, continue
+		}
+		else if (d1 != UNDEFINED_CHANNEL && d2 != UNDEFINED_CHANNEL && d3 != UNDEFINED_CHANNEL)
+		{
+			// this is also valid, continue
+		}
+		else
+		{
+			// invalid combination
+			SetErrorText("Invalid data line selection. If D0 is set, either all or none of the other data lines must be set.");
+			return false;
+		}
+	}
+
 	mClockChannel = mClockChannelInterface->GetChannel();
 	mCmdChannel = mCmdChannelInterface->GetChannel();
 	mDAT0Channel = mDAT0ChannelInterface->GetChannel();
