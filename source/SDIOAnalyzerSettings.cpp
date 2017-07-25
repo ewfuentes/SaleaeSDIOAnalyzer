@@ -91,6 +91,44 @@ bool SDIOAnalyzerSettings::SetSettingsFromInterfaces()
 	// mInputChannel = mInputChannelInterface->GetChannel();
 	// mBitRate = mBitRateInterface->GetInteger();
 
+	// check channel selection
+	{
+		Channel d0, d1, d2, d3;
+		d0 = mDAT0ChannelInterface->GetChannel();
+		d1 = mDAT1ChannelInterface->GetChannel();
+		d2 = mDAT2ChannelInterface->GetChannel();
+		d3 = mDAT3ChannelInterface->GetChannel();
+
+		if (d1 == UNDEFINED_CHANNEL && d2 == UNDEFINED_CHANNEL && d3 == UNDEFINED_CHANNEL)
+		{
+			// this is valid, continue
+		}
+		else if (d1 != UNDEFINED_CHANNEL && d2 != UNDEFINED_CHANNEL && d3 != UNDEFINED_CHANNEL)
+		{
+			// this is also valid, continue
+		}
+		else
+		{
+			// invalid combination
+			SetErrorText("Invalid data line selection. If D0 is set, either all or none of the other data lines must be set.");
+			return false;
+		}
+
+		std::vector<Channel> channels;
+		channels.push_back(d0);
+		channels.push_back(d1);
+		channels.push_back(d2);
+		channels.push_back(d3);
+		channels.push_back(mClockChannelInterface->GetChannel());
+		channels.push_back(mCmdChannelInterface->GetChannel());
+
+		if (AnalyzerHelpers::DoChannelsOverlap(channels.data(), channels.size()) == true)
+		{
+			SetErrorText("Channel selections must be unique");
+			return false;
+		}
+	}
+
 	mClockChannel = mClockChannelInterface->GetChannel();
 	mCmdChannel = mCmdChannelInterface->GetChannel();
 	mDAT0Channel = mDAT0ChannelInterface->GetChannel();
@@ -104,9 +142,9 @@ bool SDIOAnalyzerSettings::SetSettingsFromInterfaces()
 	AddChannel( mClockChannel, "Clock", true );
 	AddChannel( mCmdChannel, "Command", true );
 	AddChannel( mDAT0Channel, "DAT0", true );
-	AddChannel( mDAT1Channel, "DAT1", true );
-	AddChannel( mDAT2Channel, "DAT2", true );
-	AddChannel( mDAT3Channel, "DAT3", true );
+	AddChannel( mDAT1Channel, "DAT1", mDAT1Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT2Channel, "DAT2", mDAT2Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT3Channel, "DAT3", mDAT3Channel != UNDEFINED_CHANNEL);
 	return true;
 }
 
@@ -139,9 +177,9 @@ void SDIOAnalyzerSettings::LoadSettings( const char* settings )
 	AddChannel( mClockChannel, "Clock", true );
 	AddChannel( mCmdChannel, "Cmd", true );
 	AddChannel( mDAT0Channel, "DAT0", true );
-	AddChannel( mDAT1Channel, "DAT1", true );
-	AddChannel( mDAT2Channel, "DAT2", true );
-	AddChannel( mDAT3Channel, "DAT3", true );
+	AddChannel( mDAT1Channel, "DAT1", mDAT1Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT2Channel, "DAT2", mDAT2Channel != UNDEFINED_CHANNEL);
+	AddChannel( mDAT3Channel, "DAT3", mDAT3Channel != UNDEFINED_CHANNEL);
 
 	UpdateInterfacesFromSettings();
 }
