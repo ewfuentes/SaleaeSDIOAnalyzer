@@ -291,7 +291,7 @@ bool SDIOAnalyzer::NeedsRerun()
 
 U32 SDIOAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate, SimulationChannelDescriptor** simulation_channels )
 {
-
+	return 0;
 }
 
 U32 SDIOAnalyzer::GetMinimumSampleRateHz()
