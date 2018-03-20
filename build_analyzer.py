@@ -42,8 +42,8 @@ include_paths = [ "../include" ]
 link_paths = [ "../lib" ]
 link_dependencies = [ "-lAnalyzer" ] #refers to libAnalyzer.dylib or libAnalyzer.so
 
-debug_compile_flags = "-O0 -w -c -fpic -g"
-release_compile_flags = "-O3 -w -c -fpic"
+debug_compile_flags = "-O0 -w -c -fpic -g -std=c++11"
+release_compile_flags = "-O3 -w -c -fpic -std=c++11"
 
 #loop through all the cpp files, build up the gcc command line, and attempt to compile each cpp file
 for cpp_file in cpp_files:
