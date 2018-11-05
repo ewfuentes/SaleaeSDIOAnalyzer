@@ -95,6 +95,11 @@ class ANALYZER_EXPORT SDIOAnalyzer : public Analyzer2
     bool app;
     bool isCmd;
     U8 respLength;
+    enum respTypes
+    {
+        RESP_NORMAL,
+        RESP_LONG
+    };
     U8 respType;
 
     U64 temp;

@@ -242,13 +242,13 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
                     if( temp == 2 || temp == 9 || temp == 10 )
                     {
                         respLength = 127;
-                        respType = 2;
+                        respType = RESP_LONG;
                     }
                     else
                     {
                         // All others have 48 bit responses
                         respLength = 32;
-                        respType = 1;
+                        respType = RESP_NORMAL;
                     }
                 }
             }
@@ -268,7 +268,7 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
 
         frameCounter--;
 
-        if( !isCmd && frameCounter == 1 && respType == 2 )
+        if( !isCmd && frameCounter == 1 && respType == RESP_LONG )
         {
             temp = temp << 1;
 
