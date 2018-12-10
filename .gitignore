@@ -22,3 +22,7 @@
 
 release/
 debug/
+
+Visual Studio/.vs/
+Visual Studio/Win32/
+Visual Studio/x64/
