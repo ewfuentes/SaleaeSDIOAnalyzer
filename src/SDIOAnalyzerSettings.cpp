@@ -56,11 +56,10 @@ SDIOAnalyzerSettings::SDIOAnalyzerSettings()
 
     mClockChannelInterface->SetSelectionOfNoneIsAllowed( false );
     mCmdChannelInterface->SetSelectionOfNoneIsAllowed( false );
-    mDAT0ChannelInterface->SetSelectionOfNoneIsAllowed( false );
+    mDAT0ChannelInterface->SetSelectionOfNoneIsAllowed( true );
     mDAT1ChannelInterface->SetSelectionOfNoneIsAllowed( true );
     mDAT2ChannelInterface->SetSelectionOfNoneIsAllowed( true );
     mDAT3ChannelInterface->SetSelectionOfNoneIsAllowed( true );
-
 
     AddInterface( mClockChannelInterface.get() );
     AddInterface( mCmdChannelInterface.get() );
@@ -100,7 +99,10 @@ bool SDIOAnalyzerSettings::SetSettingsFromInterfaces()
         d2 = mDAT2ChannelInterface->GetChannel();
         d3 = mDAT3ChannelInterface->GetChannel();
 
-        if( d1 == UNDEFINED_CHANNEL && d2 == UNDEFINED_CHANNEL && d3 == UNDEFINED_CHANNEL )
+        if( d0 == UNDEFINED_CHANNEL && d1 == UNDEFINED_CHANNEL && d2 == UNDEFINED_CHANNEL && d3 == UNDEFINED_CHANNEL )
+        {
+        }
+        else if( d1 == UNDEFINED_CHANNEL && d2 == UNDEFINED_CHANNEL && d3 == UNDEFINED_CHANNEL )
         {
             // this is valid, continue
         }
@@ -142,7 +144,7 @@ bool SDIOAnalyzerSettings::SetSettingsFromInterfaces()
 
     AddChannel( mClockChannel, "Clock", true );
     AddChannel( mCmdChannel, "Command", true );
-    AddChannel( mDAT0Channel, "DAT0", true );
+    AddChannel( mDAT0Channel, "DAT0", mDAT0Channel != UNDEFINED_CHANNEL );
     AddChannel( mDAT1Channel, "DAT1", mDAT1Channel != UNDEFINED_CHANNEL );
     AddChannel( mDAT2Channel, "DAT2", mDAT2Channel != UNDEFINED_CHANNEL );
     AddChannel( mDAT3Channel, "DAT3", mDAT3Channel != UNDEFINED_CHANNEL );
@@ -177,7 +179,7 @@ void SDIOAnalyzerSettings::LoadSettings( const char* settings )
 
     AddChannel( mClockChannel, "Clock", true );
     AddChannel( mCmdChannel, "Cmd", true );
-    AddChannel( mDAT0Channel, "DAT0", true );
+    AddChannel( mDAT0Channel, "DAT0", mDAT0Channel != UNDEFINED_CHANNEL );
     AddChannel( mDAT1Channel, "DAT1", mDAT1Channel != UNDEFINED_CHANNEL );
     AddChannel( mDAT2Channel, "DAT2", mDAT2Channel != UNDEFINED_CHANNEL );
     AddChannel( mDAT3Channel, "DAT3", mDAT3Channel != UNDEFINED_CHANNEL );

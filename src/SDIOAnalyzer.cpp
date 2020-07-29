@@ -74,14 +74,15 @@ void SDIOAnalyzer::WorkerThread()
 
     mClock = GetAnalyzerChannelData( mSettings->mClockChannel );
     mCmd = GetAnalyzerChannelData( mSettings->mCmdChannel );
-    mDAT0 = GetAnalyzerChannelData( mSettings->mDAT0Channel );
+    mDAT0 = mSettings->mDAT0Channel == UNDEFINED_CHANNEL ? nullptr : GetAnalyzerChannelData( mSettings->mDAT0Channel );
     mDAT1 = mSettings->mDAT1Channel == UNDEFINED_CHANNEL ? nullptr : GetAnalyzerChannelData( mSettings->mDAT1Channel );
     mDAT2 = mSettings->mDAT2Channel == UNDEFINED_CHANNEL ? nullptr : GetAnalyzerChannelData( mSettings->mDAT2Channel );
     mDAT3 = mSettings->mDAT3Channel == UNDEFINED_CHANNEL ? nullptr : GetAnalyzerChannelData( mSettings->mDAT3Channel );
 
     mClock->AdvanceToNextEdge();
     mCmd->AdvanceToAbsPosition( mClock->GetSampleNumber() );
-    mDAT0->AdvanceToAbsPosition( mClock->GetSampleNumber() );
+    if( mDAT0 )
+        mDAT0->AdvanceToAbsPosition( mClock->GetSampleNumber() );
     if( mDAT1 )
         mDAT1->AdvanceToAbsPosition( mClock->GetSampleNumber() );
     if( mDAT2 )
@@ -121,7 +122,8 @@ void SDIOAnalyzer::PacketStateMachine()
         sampleNumber = mClock->GetSampleNumber();
 
         mCmd->AdvanceToAbsPosition( sampleNumber );
-        mDAT0->AdvanceToAbsPosition( sampleNumber );
+        if( mDAT0 )
+            mDAT0->AdvanceToAbsPosition( sampleNumber );
         if( mDAT1 )
             mDAT1->AdvanceToAbsPosition( sampleNumber );
         if( mDAT2 )
@@ -140,7 +142,8 @@ void SDIOAnalyzer::PacketStateMachine()
         U64 sampleNumber = mClock->GetSampleNumber();
 
         mCmd->AdvanceToAbsPosition( sampleNumber );
-        mDAT0->AdvanceToAbsPosition( sampleNumber );
+        if( mDAT0 )
+            mDAT0->AdvanceToAbsPosition( sampleNumber );
         if( mDAT1 )
             mDAT1->AdvanceToAbsPosition( sampleNumber );
         if( mDAT2 )
