@@ -51,8 +51,8 @@ class ANALYZER_EXPORT SDIOAnalyzer : public Analyzer
     };
 
   protected: // vars
-    std::auto_ptr<SDIOAnalyzerSettings> mSettings;
-    std::auto_ptr<SDIOAnalyzerResults> mResults;
+    std::unique_ptr<SDIOAnalyzerSettings> mSettings;
+    std::unique_ptr<SDIOAnalyzerResults> mResults;
 
     AnalyzerChannelData* mClock;
     AnalyzerChannelData* mCmd;
