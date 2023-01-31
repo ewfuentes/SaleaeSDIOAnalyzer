@@ -1,6 +1,7 @@
 // The MIT License (MIT)
 //
 // Copyright (c) 2013 Erick Fuentes http://erickfuent.es
+// Copyright (c) 2014 Kuy Mainwaring http://logiblock.com
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -98,6 +99,8 @@ class ANALYZER_EXPORT SDIOAnalyzer : public Analyzer2
 
     U64 temp;
     U64 temp2;
+    U32 lastCommand;
+    U32 expectedCRC;
 };
 
 extern "C" ANALYZER_EXPORT const char* __cdecl GetAnalyzerName();

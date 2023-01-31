@@ -1,6 +1,7 @@
 // The MIT License (MIT)
 //
 // Copyright (c) 2013 Erick Fuentes http://erickfuent.es
+// Copyright (c) 2014 Kuy Mainwaring http://logiblock.com
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,8 +44,10 @@ void SDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel,
 
     char number_str1[ 128 ];
     char number_str2[ 128 ];
-    if( frame.mType == SDIOAnalyzer::FRAME_DIR )
+
+    switch( frame.mType )
     {
+    case SDIOAnalyzer::FRAME_DIR:
         if( frame.mData1 )
         {
             AddResultString( "H" );
@@ -57,27 +60,34 @@ void SDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel,
             AddResultString( "Slave" );
             AddResultString( "DIR: Slave" );
         }
-    }
-    else if( frame.mType == SDIOAnalyzer::FRAME_CMD )
-    {
-        AnalyzerHelpers::GetNumberString( frame.mData1, Decimal, 6, number_str1, 128 );
-        AddResultString( "CMD ", number_str1 );
-    }
-    else if( frame.mType == SDIOAnalyzer::FRAME_ARG )
-    {
+        break;
+
+    case SDIOAnalyzer::FRAME_CMD:
+        AnalyzerHelpers::GetNumberString( frame.mData1 & 0x3F, Decimal, 6, number_str1, 128 );
+        AddResultString( ( frame.mData1 & 0x40 ) ? "C" : "R", number_str1 );
+        AddResultString( ( frame.mData1 & 0x40 ) ? "CMD" : "RSP", number_str1 );
+        break;
+
+    case SDIOAnalyzer::FRAME_ARG:
         AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 32, number_str1, 128 );
         AddResultString( "ARG ", number_str1 );
-    }
-    else if( frame.mType == SDIOAnalyzer::FRAME_LONG_ARG )
-    {
+        break;
+
+    case SDIOAnalyzer::FRAME_LONG_ARG:
         AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 64, number_str1, 128 );
         AnalyzerHelpers::GetNumberString( frame.mData2, display_base, 64, number_str2, 128 );
         AddResultString( "LONG: ", number_str1, number_str2 );
-    }
-    else if( frame.mType == SDIOAnalyzer::FRAME_CRC )
-    {
+        break;
+
+    case SDIOAnalyzer::FRAME_CRC:
         AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 7, number_str1, 128 );
-        AddResultString( "CRC ", number_str1 );
+        AddResultString( ( frame.mData1 & 0x80 ) ? "O" : "X" );
+        AddResultString( ( frame.mData1 & 0x80 ) ? "CRC" : "BAD" );
+        AddResultString( ( frame.mData1 & 0x80 ) ? "CRC OK" : "BAD CRC" );
+        break;
+
+    default:
+        break;
     }
 }
 
