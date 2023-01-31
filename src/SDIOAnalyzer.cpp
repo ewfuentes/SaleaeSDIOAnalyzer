@@ -25,7 +25,7 @@
 #include <AnalyzerChannelData.h>
 
 SDIOAnalyzer::SDIOAnalyzer()
-    : Analyzer(),
+    : Analyzer2(),
       mSettings( new SDIOAnalyzerSettings() ),
       mSimulationInitilized( false ),
       mAlreadyRun( false ),
@@ -40,12 +40,9 @@ SDIOAnalyzer::~SDIOAnalyzer()
     KillThread();
 }
 
-void SDIOAnalyzer::WorkerThread()
+void SDIOAnalyzer::SetupResults()
 {
     mResults.reset( new SDIOAnalyzerResults( this, mSettings.get() ) );
-
-    mAlreadyRun = true;
-
     SetAnalyzerResults( mResults.get() );
 
     // mResults->AddChannelBubblesWillAppearOn(mSettings->mClockChannel);
@@ -54,6 +51,11 @@ void SDIOAnalyzer::WorkerThread()
     // mResults->AddChannelBubblesWillAppearOn(mSettings->mDAT1Channel);
     // mResults->AddChannelBubblesWillAppearOn(mSettings->mDAT2Channel);
     // mResults->AddChannelBubblesWillAppearOn(mSettings->mDAT3Channel);
+}
+
+void SDIOAnalyzer::WorkerThread()
+{
+    mAlreadyRun = true;
 
     mClock = GetAnalyzerChannelData( mSettings->mClockChannel );
     mCmd = GetAnalyzerChannelData( mSettings->mCmdChannel );
