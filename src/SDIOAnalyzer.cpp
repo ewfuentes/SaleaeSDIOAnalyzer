@@ -48,6 +48,7 @@ SDIOAnalyzer::SDIOAnalyzer()
       frameState( TRANSMISSION_BIT )
 {
     SetAnalyzerSettings( mSettings.get() );
+    UseFrameV2();
 }
 
 SDIOAnalyzer::~SDIOAnalyzer()
@@ -189,6 +190,10 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
         frame.mType = FRAME_DIR;
         mResults->AddFrame( frame );
 
+        FrameV2 frame_v2;
+        frame_v2.AddBoolean( "DIR", frame.mData1 );
+        mResults->AddFrameV2( frame_v2, "DIR", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
+
         // The transmission bit tells us the origin of the packet
         // If the bit is high the packet comes from the host
         // If the bit is low, the packet comes from the slave
@@ -215,12 +220,17 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
             frame.mStartingSampleInclusive = startOfNextFrame;
             frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
             frame.mFlags = 0;
-            // store the first 6 bits for the command and one extra (bit 6) indicating direction
-            frame.mData1 = ( temp & 0x3F ) | ( ( isCmd ? 1 : 0 ) << 6 );
+            frame.mData1 = temp & 0x3F;
+            frame.mData2 = isCmd ? 1 : 0;
             frame.mType = FRAME_CMD;
             mResults->AddFrame( frame );
 
-            expectedCRC = sdCRC7( 0, frame.mData1 );
+            FrameV2 frame_v2;
+            frame_v2.AddByte( "CMD", frame.mData1 );
+            frame_v2.AddBoolean( "DIR", frame.mData2 );
+            mResults->AddFrameV2( frame_v2, "COMMAND", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
+
+            expectedCRC = sdCRC7( 0, ( frame.mData2 << 6 ) | frame.mData1 );
 
             // Once we have the arguement
 
@@ -281,6 +291,11 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
             frame.mType = FRAME_LONG_ARG;
             mResults->AddFrame( frame );
 
+            FrameV2 frame_v2;
+            frame_v2.AddByte( "ARG1", frame.mData1 );
+            frame_v2.AddByte( "ARG2", frame.mData2 );
+            mResults->AddFrameV2( frame_v2, "LONG ARG", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
+
             for( signed int i = 24; i >= 0; i -= 8 )
                 expectedCRC = sdCRC7( expectedCRC, 0xFF & ( frame.mData1 >> i ) );
 
@@ -298,9 +313,13 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
             frame.mStartingSampleInclusive = startOfNextFrame;
             frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
             frame.mFlags = lastCommand;
-            frame.mData1 = temp; // Select the first 6 bits
+            frame.mData1 = temp;
             frame.mType = FRAME_ARG;
             mResults->AddFrame( frame );
+
+            FrameV2 frame_v2;
+            frame_v2.AddByte( "ARG", frame.mData1 );
+            mResults->AddFrameV2( frame_v2, "NORMAL ARG", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
 
             for( signed int i = 24; i >= 0; i -= 8 )
                 expectedCRC = sdCRC7( expectedCRC, 0xFF & ( frame.mData1 >> i ) );
@@ -331,10 +350,15 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
             frame.mStartingSampleInclusive = startOfNextFrame;
             frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
             frame.mFlags = 0;
-            // Select the first 7 bits and store a (crc == expected) flag
-            frame.mData1 = temp | ( ( temp == expectedCRC ) ? 0x80 : 0 );
+            frame.mData1 = temp;
+            frame.mData2 = ( temp == expectedCRC );
             frame.mType = FRAME_CRC;
             mResults->AddFrame( frame );
+
+            FrameV2 frame_v2;
+            frame_v2.AddByte( "CRC", frame.mData1 );
+            frame_v2.AddBoolean( "PASS", frame.mData2 );
+            mResults->AddFrameV2( frame_v2, "CRC", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
 
             frameState = STOP;
             startOfNextFrame = frame.mEndingSampleInclusive + 1;

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 project(SDIOAnalyzer)
 
+add_definitions(-DLOGIC2)
+
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 include(ExternalAnalyzerSDK)

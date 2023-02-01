@@ -63,9 +63,9 @@ void SDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel,
         break;
 
     case SDIOAnalyzer::FRAME_CMD:
-        AnalyzerHelpers::GetNumberString( frame.mData1 & 0x3F, Decimal, 6, number_str1, 128 );
-        AddResultString( ( frame.mData1 & 0x40 ) ? "C" : "R", number_str1 );
-        AddResultString( ( frame.mData1 & 0x40 ) ? "CMD" : "RSP", number_str1 );
+        AnalyzerHelpers::GetNumberString( frame.mData1, Decimal, 6, number_str1, 128 );
+        AddResultString( ( frame.mData2 ) ? "C" : "R", number_str1 );
+        AddResultString( ( frame.mData2 ) ? "CMD" : "RSP", number_str1 );
         break;
 
     case SDIOAnalyzer::FRAME_ARG:
@@ -81,9 +81,9 @@ void SDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel,
 
     case SDIOAnalyzer::FRAME_CRC:
         AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 7, number_str1, 128 );
-        AddResultString( ( frame.mData1 & 0x80 ) ? "O" : "X" );
-        AddResultString( ( frame.mData1 & 0x80 ) ? "CRC" : "BAD" );
-        AddResultString( ( frame.mData1 & 0x80 ) ? "CRC OK" : "BAD CRC" );
+        AddResultString( frame.mData2 ? "O" : "X" );
+        AddResultString( frame.mData2 ? "CRC" : "BAD" );
+        AddResultString( frame.mData2 ? "CRC OK" : "BAD CRC" );
         break;
 
     default:
