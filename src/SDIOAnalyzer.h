@@ -65,7 +65,7 @@ class ANALYZER_EXPORT SDIOAnalyzer : public Analyzer2
     AnalyzerChannelData* mDAT3;
 
     SDIOSimulationDataGenerator mSimulationDataGenerator;
-    bool mSimulationInitilized;
+    bool mSimulationInitialized;
 
   private:
     bool mAlreadyRun;

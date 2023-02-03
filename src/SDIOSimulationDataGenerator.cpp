@@ -68,7 +68,7 @@ void SDIOSimulationDataGenerator::CreateSerialByte()
     if( mStringIndex == mSerialText.size() )
         mStringIndex = 0;
 
-    // we're currenty high
+    // we're currently high
     // let's move forward a little
     mSerialSimulationData.Advance( samples_per_bit * 10 );
 

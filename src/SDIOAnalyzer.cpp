@@ -42,7 +42,7 @@ U32 sdCRC7( U32 crc, U8 messageByte )
 SDIOAnalyzer::SDIOAnalyzer()
     : Analyzer2(),
       mSettings( new SDIOAnalyzerSettings() ),
-      mSimulationInitilized( false ),
+      mSimulationInitialized( false ),
       mAlreadyRun( false ),
       packetState( WAITING_FOR_PACKET ),
       frameState( TRANSMISSION_BIT )
@@ -232,11 +232,11 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
 
             expectedCRC = sdCRC7( 0, ( frame.mData2 << 6 ) | frame.mData1 );
 
-            // Once we have the arguement
+            // Once we have the argument
 
             lastCommand = frame.mData1;
 
-            // Find the expected length of the next reponse based on the command
+            // Find the expected length of the next response based on the command
             if( isCmd )
             {
                 if( app )
