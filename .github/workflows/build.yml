@@ -60,7 +60,7 @@ jobs:
     - name: zip
       run: |
         cd ${{github.workspace}}/artifacts
-        zip -r ${{github.workspace}}/SaleaeSDIOAnalyzer-${{github.ref_name}}.zip .
+        zip -r ${{github.workspace}}/SaleaeSDIOAnalyzer-${{github.sha}}.zip .
     - uses: actions/upload-artifact@v3
       with:
         name: all-platforms
@@ -69,4 +69,4 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-          files: ${{github.workspace}}/SaleaeSDIOAnalyzer-${{github.ref_name}}.zip
+          files: ${{github.workspace}}/SaleaeSDIOAnalyzer-${{github.sha}}.zip
