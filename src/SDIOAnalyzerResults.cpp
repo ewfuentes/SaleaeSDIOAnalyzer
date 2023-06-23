@@ -94,60 +94,135 @@ void SDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel,
 void SDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id )
 {
     std::ofstream file_stream( file, std::ios::out );
-
+    char value_str[ 128 ];
     U64 trigger_sample = mAnalyzer->GetTriggerSample();
     U32 sample_rate = mAnalyzer->GetSampleRate();
-
-    file_stream << "Time [s],Value" << std::endl;
-
     U64 num_frames = GetNumFrames();
+    enum state
+    {
+        STATE_START,
+        STATE_DIR,
+        STATE_CMD,
+        STATE_ARG,
+        STATE_CRC,
+        STATE_END,
+        STATE_ERR,
+    } current_state = STATE_START;
+
+    file_stream << "Time[s],IDX,DIR,CMD,ARG1,ARG2,CRC,PASS" << std::endl;
+
     for( U32 i = 0; i < num_frames; i++ )
     {
         Frame frame = GetFrame( i );
 
-        char time_str[ 128 ];
-        AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, time_str, 128 );
-
-        char number_str[ 128 ];
-        AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
-
-        file_stream << time_str << ",";
-
-        if( frame.mType == SDIOAnalyzer::FRAME_DIR )
+        switch( current_state )
         {
-            file_stream << "DIR:";
+        case STATE_START:
+            AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, value_str, 128 );
+
+            file_stream << value_str;
+
+            file_stream << "," << i;
+
+            if( frame.mType != SDIOAnalyzer::FRAME_DIR )
+            {
+                current_state = STATE_ERR;
+                break;
+            }
+
+            current_state = STATE_DIR;
+            break;
+
+        case STATE_DIR:
+            if( frame.mType != SDIOAnalyzer::FRAME_DIR )
+            {
+                current_state = STATE_ERR;
+                break;
+            }
             if( frame.mData1 )
             {
-                file_stream << "from Host";
+                file_stream << ",C";
             }
             else
             {
-                file_stream << "from Slave";
+                file_stream << ",R";
             }
-        }
-        else if( frame.mType == SDIOAnalyzer::FRAME_CMD )
-        {
-            file_stream << "CMD:" << number_str;
-        }
-        else if( frame.mType == SDIOAnalyzer::FRAME_ARG )
-        {
-            file_stream << "ARG:" << number_str;
-        }
-        else if( frame.mType == SDIOAnalyzer::FRAME_LONG_ARG )
-        {
-            file_stream << "LONG_ARG:" << number_str;
-        }
-        else if( frame.mType == SDIOAnalyzer::FRAME_CRC )
-        {
-            file_stream << "CRC:" << number_str;
-        }
+            current_state = STATE_CMD;
+            break;
 
-        file_stream << std::endl;
+        case STATE_CMD:
+            if( frame.mType != SDIOAnalyzer::FRAME_CMD )
+            {
+                current_state = STATE_ERR;
+                break;
+            }
+            AnalyzerHelpers::GetNumberString( frame.mData1, Decimal, 6, value_str, 128 );
+            file_stream << "," << value_str;
+            current_state = STATE_ARG;
+            break;
 
-        if( UpdateExportProgressAndCheckForCancel( i, num_frames ) == true )
-        {
-            file_stream.close();
-            return;
+        case STATE_ARG:
+            if( frame.mType == SDIOAnalyzer::FRAME_ARG )
+            {
+                AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 32, value_str, 128 );
+                file_stream << "," << value_str;
+                file_stream << ",";
+                break;
+            }
+            else if( frame.mType == SDIOAnalyzer::FRAME_LONG_ARG )
+            {
+                AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 64, value_str, 128 );
+                file_stream << "," << value_str;
+
+                AnalyzerHelpers::GetNumberString( frame.mData2, display_base, 64, value_str, 128 );
+                file_stream << "," << value_str;
+            }
+            else
+            {
+                current_state = STATE_ERR;
+                break;
+            }
+            current_state = STATE_CRC;
+
+        case STATE_CRC:
+            if( frame.mType != SDIOAnalyzer::FRAME_CRC )
+            {
+                current_state = STATE_ERR;
+                break;
+            }
+
+            AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 7, value_str, 128 );
+            file_stream << "," << value_str;
+            if( frame.mData2 )
+            {
+                file_stream << ",1";
+            }
+            else
+            {
+                file_stream << ",0";
+            }
+            current_state = STATE_END;
+            break;
+
+        case STATE_END:
+            file_stream << std::endl;
+
+            if( UpdateExportProgressAndCheckForCancel( i, num_frames ) )
+            {
+                file_stream.close();
+                return;
+            }
+            current_state = STATE_START;
+            break;
+
+        case STATE_ERR:
+            file_stream << ",ERROR";
+            current_state = STATE_END;
+            break;
+
+        default:
+            current_state = STATE_ERR;
+            break;
         }
     }
 
