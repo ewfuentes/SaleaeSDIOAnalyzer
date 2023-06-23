@@ -80,32 +80,31 @@ class ANALYZER_EXPORT SDIOAnalyzer : public Analyzer2
     };
     U32 packetState;
 
-    U32 FrameStateMachine();
+    bool FrameStateMachine();
     enum frameStates
     {
         TRANSMISSION_BIT,
         COMMAND,
-        ARGUMENT,
+        NORMAL_ARGUMENT,
+        LONG_ARGUMENT,
         CRC7,
         STOP
     };
     U32 frameState;
     U32 frameCounter;
 
-    bool app;
     bool isCmd;
-    U8 respLength;
-    enum respTypes
-    {
-        RESP_NORMAL,
-        RESP_LONG
-    };
-    U8 respType;
 
-    U64 temp;
-    U64 temp2;
+    U8 byte = 0;
+    U8 data[ 8 ] = { 0 };
+    int byteCounter = 0;
+    U64 qwordHigh = 0;
+    U64 qwordLow = 0;
     U32 lastCommand;
     U32 expectedCRC;
+    S64 startingSampleInclusive = 0;
+    S64 endingSampleInclusive = 0;
+    std::unique_ptr<FrameV2> frameV2;
 };
 
 extern "C" ANALYZER_EXPORT const char* __cdecl GetAnalyzerName();
