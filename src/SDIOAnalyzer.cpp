@@ -24,7 +24,9 @@
 #include "SDIOAnalyzer.h"
 #include "SDIOAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
-
+#include <AnalyzerResults.h>
+#include <algorithm>
+#include <memory>
 
 U32 sdCRC7( U32 crc, U8 messageByte )
 {
@@ -45,7 +47,8 @@ SDIOAnalyzer::SDIOAnalyzer()
       mSimulationInitialized( false ),
       mAlreadyRun( false ),
       packetState( WAITING_FOR_PACKET ),
-      frameState( TRANSMISSION_BIT )
+      frameState( TRANSMISSION_BIT ),
+      frameV2( std::unique_ptr<FrameV2>( new FrameV2 ) )
 {
     SetAnalyzerSettings( mSettings.get() );
     UseFrameV2();
@@ -155,7 +158,7 @@ void SDIOAnalyzer::PacketStateMachine()
         if( mClock->GetBitState() == BIT_HIGH )
         {
             mResults->AddMarker( mClock->GetSampleNumber(), AnalyzerResults::UpArrow, mSettings->mClockChannel );
-            if( FrameStateMachine() == 1 )
+            if( FrameStateMachine() )
             {
                 packetState = WAITING_FOR_PACKET;
             }
@@ -176,59 +179,68 @@ void SDIOAnalyzer::PacketStateMachine()
 //  - Long Response
 //  - Data
 
-U32 SDIOAnalyzer::FrameStateMachine( void )
+bool SDIOAnalyzer::FrameStateMachine( void )
 {
+    Frame frame;
+    bool done = false;
+    U8 respLength;
+
     switch( frameState )
     {
     case TRANSMISSION_BIT:
-    {
-        Frame frame;
         frame.mStartingSampleInclusive = lastFallingClockEdge;
-        frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
+        frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge();
         frame.mFlags = 0;
         frame.mData1 = mCmd->GetBitState();
         frame.mType = FRAME_DIR;
         mResults->AddFrame( frame );
 
-        FrameV2 frame_v2;
-        frame_v2.AddBoolean( "DIR", frame.mData1 );
-        mResults->AddFrameV2( frame_v2, "DIR", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
+        frameV2->AddBoolean( "DIR", frame.mData1 );
+        startingSampleInclusive = frame.mStartingSampleInclusive;
 
         // The transmission bit tells us the origin of the packet
         // If the bit is high the packet comes from the host
         // If the bit is low, the packet comes from the slave
         isCmd = mCmd->GetBitState();
 
+        mResults->AddMarker( lastFallingClockEdge, SDIOAnalyzerResults::MarkerType::Start, mSettings->mCmdChannel );
+        if( isCmd )
+        {
+            mResults->AddMarker( mClock->GetSampleNumber(), SDIOAnalyzerResults::MarkerType::One, mSettings->mCmdChannel );
+        }
+        else
+        {
+            mResults->AddMarker( mClock->GetSampleNumber(), SDIOAnalyzerResults::MarkerType::Zero, mSettings->mCmdChannel );
+        }
+
         frameState = COMMAND;
         frameCounter = 6;
 
-        startOfNextFrame = ( frame.mEndingSampleInclusive + 1 );
-        temp = 0;
+        qwordLow = 0;
         lastCommand = 0;
         expectedCRC = 0;
-    }
-    break;
+        startOfNextFrame = UINT64_MAX;
+        break;
 
     case COMMAND:
-    {
-        temp = ( temp << 1 ) | mCmd->GetBitState();
-
+        startOfNextFrame = std::min( startOfNextFrame, lastFallingClockEdge );
+        qwordLow = ( qwordLow << 1 ) | mCmd->GetBitState();
         frameCounter--;
+
         if( frameCounter == 0 )
         {
-            Frame frame;
             frame.mStartingSampleInclusive = startOfNextFrame;
-            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
+            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge();
             frame.mFlags = 0;
-            frame.mData1 = temp & 0x3F;
+            frame.mData1 = qwordLow & 0x3F;
             frame.mData2 = isCmd ? 1 : 0;
             frame.mType = FRAME_CMD;
-            mResults->AddFrame( frame );
 
-            FrameV2 frame_v2;
-            frame_v2.AddByte( "CMD", frame.mData1 );
-            frame_v2.AddBoolean( "DIR", frame.mData2 );
-            mResults->AddFrameV2( frame_v2, "COMMAND", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
+            mResults->AddFrame( frame );
+            mResults->AddMarker( startOfNextFrame + 1, SDIOAnalyzerResults::MarkerType::Dot, mSettings->mCmdChannel );
+
+            frameV2->AddByte( "CMD", frame.mData1 );
+            frameV2->AddBoolean( "DIR", frame.mData2 );
 
             expectedCRC = sdCRC7( 0, ( frame.mData2 << 6 ) | frame.mData1 );
 
@@ -237,64 +249,94 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
             lastCommand = frame.mData1;
 
             // Find the expected length of the next response based on the command
-            if( isCmd )
+            if( !isCmd && ( qwordLow == 2 || qwordLow == 9 || qwordLow == 10 ) )
+            // CMD2, CMD9 and CMD10 respond with long R2 response
             {
-                if( app )
-                {
-                    // Deal with the application commands first
-                    // All Application commands have a 48 bit response
-                    respLength = 32;
-                }
-                else
-                {
-                    // Deal with standard commands now
-                    // CMD2, CMD9 and CMD10 respond with R2
-                    if( temp == 2 || temp == 9 || temp == 10 )
-                    {
-                        respLength = 127;
-                        respType = RESP_LONG;
-                    }
-                    else
-                    {
-                        // All others have 48 bit responses
-                        respLength = 32;
-                        respType = RESP_NORMAL;
-                    }
-                }
+                respLength = 127;
+                frameState = LONG_ARGUMENT;
+            }
+            else
+            {
+                // All others have 48 bit responses
+                respLength = 32;
+                frameState = NORMAL_ARGUMENT;
             }
 
-            frameState = ARGUMENT;
-            startOfNextFrame = frame.mEndingSampleInclusive + 1;
-            temp = 0;
-
-            frameCounter = isCmd ? 32 : respLength;
+            byte = 0;
+            qwordLow = 0;
+            byteCounter = 0;
+            frameCounter = respLength;
+            startOfNextFrame = UINT64_MAX;
         }
-    }
-    break;
+        break;
 
-    case ARGUMENT:
-    {
-        temp = temp << 1 | mCmd->GetBitState();
+    case NORMAL_ARGUMENT:
+        startOfNextFrame = std::min( startOfNextFrame, lastFallingClockEdge );
+        byte = byte << 1 | mCmd->GetBitState();
+        qwordLow = ( qwordLow << 1 ) | mCmd->GetBitState();
 
         frameCounter--;
 
-        if( !isCmd && frameCounter == 1 && respType == RESP_LONG )
+        if( ( frameCounter ) % 8 == 0 )
         {
-            temp = temp << 1;
+            data[ byteCounter ] = byte;
+            byteCounter++;
+            byte = 0;
+        }
 
-            Frame frame;
+        if( frameCounter == 0 )
+        {
             frame.mStartingSampleInclusive = startOfNextFrame;
-            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
+            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge();
             frame.mFlags = lastCommand;
-            frame.mData1 = temp2;
-            frame.mData2 = temp;
+            frame.mData1 = qwordLow;
+            frame.mType = FRAME_ARG;
+
+            mResults->AddFrame( frame );
+            mResults->AddMarker( startOfNextFrame + 1, SDIOAnalyzerResults::MarkerType::Square, mSettings->mCmdChannel );
+
+            frameV2->AddByteArray( "ARG", data, 4 );
+
+            for( signed int i = 24; i >= 0; i -= 8 )
+                expectedCRC = sdCRC7( expectedCRC, 0xFF & ( frame.mData1 >> i ) );
+
+            frameState = CRC7;
+            frameCounter = 7;
+            qwordLow = 0;
+            startOfNextFrame = UINT64_MAX;
+        }
+        break;
+
+    case LONG_ARGUMENT:
+        startOfNextFrame = std::min( startOfNextFrame, lastFallingClockEdge );
+        byte = byte << 1 | mCmd->GetBitState();
+        qwordLow = ( qwordLow << 1 ) | mCmd->GetBitState();
+
+        frameCounter--;
+
+        if( frameCounter % 8 == 0 )
+        {
+            data[ byteCounter ] = byte;
+        }
+
+        if( frameCounter == 63 )
+        {
+            qwordHigh = qwordLow;
+            qwordLow = 0;
+        }
+
+        if( frameCounter == 0 )
+        {
+            frame.mStartingSampleInclusive = startOfNextFrame;
+            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge();
+            frame.mFlags = lastCommand;
+            frame.mData1 = qwordHigh;
+            frame.mData2 = qwordLow;
             frame.mType = FRAME_LONG_ARG;
             mResults->AddFrame( frame );
+            mResults->AddMarker( startOfNextFrame + 1, SDIOAnalyzerResults::MarkerType::Square, mSettings->mCmdChannel );
 
-            FrameV2 frame_v2;
-            frame_v2.AddByte( "ARG1", frame.mData1 );
-            frame_v2.AddByte( "ARG2", frame.mData2 );
-            mResults->AddFrameV2( frame_v2, "LONG ARG", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
+            frameV2->AddByteArray( "ARG", data, 8 );
 
             for( signed int i = 24; i >= 0; i -= 8 )
                 expectedCRC = sdCRC7( expectedCRC, 0xFF & ( frame.mData1 >> i ) );
@@ -304,80 +346,65 @@ U32 SDIOAnalyzer::FrameStateMachine( void )
 
             frameState = STOP;
             frameCounter = 1;
-            startOfNextFrame = frame.mEndingSampleInclusive + 1;
-            temp = 0;
+            qwordLow = 0;
+            startOfNextFrame = UINT64_MAX;
         }
-        else if( frameCounter == 0 )
-        {
-            Frame frame;
-            frame.mStartingSampleInclusive = startOfNextFrame;
-            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
-            frame.mFlags = lastCommand;
-            frame.mData1 = temp;
-            frame.mType = FRAME_ARG;
-            mResults->AddFrame( frame );
-
-            FrameV2 frame_v2;
-            frame_v2.AddByte( "ARG", frame.mData1 );
-            mResults->AddFrameV2( frame_v2, "NORMAL ARG", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
-
-            for( signed int i = 24; i >= 0; i -= 8 )
-                expectedCRC = sdCRC7( expectedCRC, 0xFF & ( frame.mData1 >> i ) );
-
-            frameState = CRC7;
-            frameCounter = 7;
-            startOfNextFrame = frame.mEndingSampleInclusive + 1;
-            temp = 0;
-        }
-        else if( frameCounter == 63 && !isCmd )
-        {
-            temp2 = temp;
-            temp = 0;
-        }
-    }
-    break;
+        break;
 
     case CRC7:
-    {
-        temp = temp << 1 | mCmd->GetBitState();
-
+        startOfNextFrame = std::min( startOfNextFrame, lastFallingClockEdge );
+        qwordLow = qwordLow << 1 | mCmd->GetBitState();
         frameCounter--;
+
         if( frameCounter == 0 )
         {
-            temp &= 0x7F;
+            qwordLow &= 0x7F;
 
-            Frame frame;
             frame.mStartingSampleInclusive = startOfNextFrame;
-            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge() - 1;
+            frame.mEndingSampleInclusive = mClock->GetSampleOfNextEdge();
             frame.mFlags = 0;
-            frame.mData1 = temp;
-            frame.mData2 = ( temp == expectedCRC );
+            frame.mData1 = qwordLow;
+            frame.mData2 = ( qwordLow == expectedCRC );
             frame.mType = FRAME_CRC;
             mResults->AddFrame( frame );
 
-            FrameV2 frame_v2;
-            frame_v2.AddByte( "CRC", frame.mData1 );
-            frame_v2.AddBoolean( "PASS", frame.mData2 );
-            mResults->AddFrameV2( frame_v2, "CRC", frame.mStartingSampleInclusive, frame.mEndingSampleInclusive );
+            if( frame.mData2 )
+            {
+                mResults->AddMarker( startOfNextFrame + 1, SDIOAnalyzerResults::MarkerType::X, mSettings->mCmdChannel );
+            }
+            else
+            {
+                mResults->AddMarker( startOfNextFrame + 1, SDIOAnalyzerResults::MarkerType::ErrorX, mSettings->mCmdChannel );
+            }
+
+            frameV2->AddByte( "CRC", frame.mData1 );
+            frameV2->AddBoolean( "PASS", frame.mData2 );
+            endingSampleInclusive = frame.mEndingSampleInclusive;
 
             frameState = STOP;
-            startOfNextFrame = frame.mEndingSampleInclusive + 1;
-            temp = 0;
+            qwordLow = 0;
         }
-    }
-    break;
+        break;
 
     case STOP:
-    {
+        mResults->AddMarker( mClock->GetSampleNumber(), SDIOAnalyzerResults::MarkerType::Stop, mSettings->mCmdChannel );
+        if( isCmd )
+        {
+            mResults->AddFrameV2( *frameV2, "CMD", startingSampleInclusive, endingSampleInclusive );
+        }
+        else
+        {
+            mResults->AddFrameV2( *frameV2, "RESP", startingSampleInclusive, endingSampleInclusive );
+        }
+        frameV2.reset( new FrameV2 );
         frameState = TRANSMISSION_BIT;
-        return 1;
-    }
+        done = true;
 
     default:
         break;
     }
 
-    return ( 0 );
+    return done;
 }
 
 bool SDIOAnalyzer::NeedsRerun( void )
